@@ -16,6 +16,7 @@ DATA_DIR = './data'
 
 data = []
 labels = []
+actual_label = 2
 for dir_ in os.listdir(DATA_DIR):
     for img_path in os.listdir(os.path.join(DATA_DIR, dir_)):
         data_aux = []
@@ -43,7 +44,8 @@ for dir_ in os.listdir(DATA_DIR):
                     data_aux.append(y - min(y_))
 
             data.append(data_aux)
-            labels.append(dir_)
+            labels.append(actual_label)
+    actual_label -= 1
 
 f = open('data.pickle', 'wb')
 pickle.dump({'data': data, 'labels': labels}, f)
