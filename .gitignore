@@ -3,3 +3,5 @@ data/
 data.pickle
 
 model.p
+
+__pycache__/*
