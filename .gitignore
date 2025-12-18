@@ -1,7 +1,9 @@
+# Data folder
 data/
 
+# Pickle files
 data.pickle
-
 model.p
 
-__pycache__/*
+# Python Cache 
+__pycache__/
