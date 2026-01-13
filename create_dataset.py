@@ -16,18 +16,17 @@ DATA_DIR = './data'
 
 data = []
 labels = []
-number_of_classes = 2 
+number_of_classes = 5
 for actual_label in range(number_of_classes):
+    print(actual_label)
     for dir_ in os.listdir(DATA_DIR):
         DATA_DIR_path = os.path.join(DATA_DIR, dir_)
-        print(DATA_DIR_path)
-        print(actual_label)
         for img_path in os.listdir(os.path.join(DATA_DIR_path, str(actual_label))):
             data_aux = []
 
             x_ = []
             y_ = []
-            img = cv2.imread(os.path.join(DATA_DIR_path, dir_, img_path))
+            img = cv2.imread(os.path.join(DATA_DIR_path, str(actual_label), img_path))
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             results = hands.process(img_rgb)
@@ -48,6 +47,6 @@ for actual_label in range(number_of_classes):
             data.append(data_aux)
             labels.append(actual_label)
 
-f = open('data.pickle', 'wb')
+f = open('data_5.pickle', 'wb')
 pickle.dump({'data': data, 'labels': labels}, f)
 f.close()
