@@ -4,6 +4,7 @@
 # Pickle files
 data.pickle
 model.p
+modelMachinLearning.p
 
 # Python Cache 
 __pycache__/
