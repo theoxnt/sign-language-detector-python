@@ -1,10 +1,10 @@
-# Data folder
-# data/
+# Data files
+src/data_pickle
+src/data
 
-# Pickle files
-data.pickle
-model.p
-modelMachinLearning.p
+# Models
+src/models
 
 # Python Cache 
 __pycache__/
+src/__pycache__/
