@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import numpy as np
 import torch
-from BestNet import BestNet
+from src.BestNet import BestNet
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from torch import nn

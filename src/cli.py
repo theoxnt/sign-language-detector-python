@@ -1,8 +1,20 @@
+import argparse
 import os
-from core import collect_images, create_dataset, train_classifier, inference_classifier
-from io_ import ask, print_prompt
-    
-def main():
+from src.core import collect_images, create_dataset, train_classifier, inference_classifier
+from src.io_ import ask, print_prompt
+
+def get_parser():
+    """
+    Build an return the CLI argument parser 
+
+    Returns: 
+        argparse.ArgumentParser: Configured parser for the project
+    """
+    parser = argparse.ArgumentParser(description="Command-line interface of the project")
+    parser.add_argument('--edit', help="edit mode : Create your own model.", action='store_true')
+    return parser
+
+def ask_user():
     response = ask("1- Collect images\n"
     "2- Create dataset\n"
     "3- Train model\n"
@@ -78,9 +90,4 @@ def main():
         raise ValueError("Option not recognized.")   
     if action_finished:
         print_prompt("\nAction completed successfully. What do you want to do next?\n")
-        return main()
-    
-if __name__ == "__main__":
-    print_prompt("\nWelcome to the Sign Language Detector!\n" \
-        "What do you want to do?\n")
-    main()
+        return ask_user()

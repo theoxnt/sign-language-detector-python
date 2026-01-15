@@ -1,5 +1,3 @@
-
-
 def ask(prompt, cast_type=None, min=None, max=None):
     valide = False
     while not valide:

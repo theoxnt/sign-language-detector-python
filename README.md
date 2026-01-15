@@ -3,7 +3,10 @@
 This project is a sign language recognition system. Its objective is to construct sentences letter by letter by recognizing the American Sign Language (ASL) alphabet.
 
 Detailed desrcription : <br>
-When the project is launched, the user can choose between several actions: <br>
+There are two ways to use the project. <br>
+First, you can use an already trained model. <br>
+Second, you can create and train your own model. <br>
+In the second mode, when the project is launched, the user can choose between several actions:
 - Data collection : By specifying the number of letters to collect, the program captures photos of the user’s hand signs. These images are later used to train the model.
 - Dataset creation : By specifying a data file (generated in the previous step or imported manually), the program analyzes the images and produces a new dataset containing extracted features that represent the photos.
 - Model training : By specifying a dataset (created in the previous step or imported), the program trains one of two types of models to recognize the ASL alphabet: a Random Forest model, or a Neural Network model.
@@ -33,9 +36,14 @@ conda activate sign_language_env
 ```bash
 pip install -r requirements.txt
 ```
-Run the code 
+Run the code <br>
+If the user want to use the sign language detector :
 ```bash
 python -m src.main
+```
+If the user want to create his own model : 
+```bash
+python -m src.main --edit
 ```
 
 ## Project structure 
