@@ -1,6 +1,5 @@
 from torch import nn
 
-# Dictionnaire des activations possibles
 activation_dict = {
     "relu": nn.ReLU,
     "leaky_relu": nn.LeakyReLU,
@@ -26,7 +25,6 @@ class ModulableNet(nn.Module):
             layers.append(activation_dict[act_name]())
             prev_dim = hid_dim
 
-        # Couche finale
         layers.append(nn.Linear(prev_dim, num_classes))
         self.net = nn.Sequential(*layers)
 

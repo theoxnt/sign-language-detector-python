@@ -15,6 +15,9 @@ def get_parser():
     return parser
 
 def ask_user():
+    """
+    Ask the user what action to perform and execute the corresponding function.
+    """
     response = ask("1- Collect images\n"
     "2- Create dataset\n"
     "3- Train model\n"
@@ -43,25 +46,25 @@ def ask_user():
         
     elif response == "3":
         data_file = ask("\nEnter the dataset folder name (without extension) to use for training: ", cast_type=str)
-        DATA_DIR = '/home/theoxnt/pologne/PITE/sign-language-detector-python/src/data_pickle'
+        DATA_DIR = './src/data_pickle'
         if not os.path.exists(os.path.join(DATA_DIR, f'{data_file}.pickle')):
             print_prompt("Dataset file does not exist. Please create the dataset first.")
             return
         else:
             type_valide = False
             while not type_valide:
-                training = ask("Do you want to train with random forest or with machine learning? (Enter 'f' or 'ml'): ", cast_type=str) 
+                training = ask("Do you want to train with random forest or with neural network? (Enter 'f' or 'n'): ", cast_type=str) 
                 if training == 'f':
                     type_valide = True
                     print_prompt("Training with Random Forest...")
                     action_finished = train_classifier(data_file, training) 
-                elif training == 'ml':
+                elif training == 'n':
                     type_valide = True
-                    print_prompt("Training with Machine Learning...")
+                    print_prompt("Training with Neural Network...")
                     num_classes = ask("For how many classes was the dataset created? ", cast_type=int, min=1, max=26)
                     action_finished = train_classifier(data_file, training, int(num_classes))
                 else:
-                    print("Invalid option selected. Please enter 'f' or 'ml'.")
+                    print("Invalid option selected. Please enter 'f' or 'n'.")
             if not action_finished:
                 print_prompt("Model training failed.")
                 return
@@ -69,15 +72,15 @@ def ask_user():
     elif response == "4":
         type_valide = False
         while not type_valide:
-            model_type = ask("\nWhich model do you want to use? (Enter 'f' for random forest or 'ml' for machine learning): ", cast_type=str) # fonction à mettre dans le core
+            model_type = ask("\nWhich model do you want to use? (Enter 'f' for random forest or 'n' for neural network): ", cast_type=str) 
             if model_type == 'f':
                 type_valide = True
-            elif model_type == 'ml':
+            elif model_type == 'n':
                 type_valide = True
             else:
-                print("Invalid option selected. Please enter 'f' or 'ml'.")
+                print("Invalid option selected. Please enter 'f' or 'n'.")
         print_prompt("Using model...")
-        action_finished = inference_classifier(model_type) # fonction à mettre dans le core
+        action_finished = inference_classifier(model_type)
         if not action_finished:
             print_prompt("Model inference failed.")
             return

@@ -6,9 +6,7 @@ class SimpleNet(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),             
-            
-            # nn.Linear(hidden_dim, hidden_dim),
-            # nn.LeakyReLU(),        
+                 
             nn.Linear(hidden_dim, hidden_dim),
             nn.GELU(),            
             

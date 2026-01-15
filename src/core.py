@@ -20,7 +20,18 @@ import math
 
 
 def collect_images(num_classes, imgs_per_class, folder_name):
-    DATA_DIR = os.path.join('/home/theoxnt/pologne/PITE/sign-language-detector-python/src/data', folder_name)
+    """
+    Collect images from webcam and save them into folders named from 0 to num_classes-1
+    
+    Args:
+        num_classes (int): Number of classes (letters) to collect images for
+        imgs_per_class (int): Number of images to collect per class
+        folder_name (str): Name of the folder to save the images
+    
+    Returns:
+        bool: True if the images were collected successfully, False otherwise
+    """
+    DATA_DIR = os.path.join('./src/data', folder_name)
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
     cap = cv2.VideoCapture(0)
@@ -28,7 +39,7 @@ def collect_images(num_classes, imgs_per_class, folder_name):
         if not os.path.exists(os.path.join(DATA_DIR, str(j))):
             os.makedirs(os.path.join(DATA_DIR, str(j)))
 
-        print('Collecting data for class {}'.format(j))
+        print(f'Collecting data for class {j}')
 
         done = False
         while True:
@@ -44,7 +55,7 @@ def collect_images(num_classes, imgs_per_class, folder_name):
             ret, frame = cap.read()
             cv2.imshow('frame', frame)
             cv2.waitKey(25)
-            cv2.imwrite(os.path.join(DATA_DIR, str(j), '{}.jpg'.format(counter)), frame)
+            cv2.imwrite(os.path.join(DATA_DIR, str(j), 'f{counter}.jpg'), frame)
 
             counter += 1
 
@@ -54,13 +65,21 @@ def collect_images(num_classes, imgs_per_class, folder_name):
 
 
 def create_dataset(number_of_classes, dataset_name):
+    """
+    Create a dataset from the collected images and save it as a pickle file
+    
+    Args:
+        number_of_classes (int): Number of classes (letters) in the dataset to be created
+        dataset_name (str): Name of the dataset file to be created (without extension)
+    
+    Returns:
+        bool: True if the dataset was created successfully, False otherwise
+    """
     mp_hands = mp.solutions.hands
-    mp_drawing = mp.solutions.drawing_utils
-    mp_drawing_styles = mp.solutions.drawing_styles
 
     hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
-    DATA_DIR = '/home/theoxnt/pologne/PITE/sign-language-detector-python/src/data'
+    DATA_DIR = './src/data'
 
     data = []
     labels = []
@@ -94,7 +113,7 @@ def create_dataset(number_of_classes, dataset_name):
                             data_aux.append(y - min(y_))
                 data.append(data_aux)
                 labels.append(actual_label)
-    DATASET_DIR = '/home/theoxnt/pologne/PITE/sign-language-detector-python/src/data_pickle'
+    DATASET_DIR = './src/data_pickle'
     Path(DATASET_DIR).mkdir(parents=True, exist_ok=True)
     with open(f'{DATASET_DIR}/{dataset_name}.pickle', 'wb') as f:
         pickle.dump({'data': data, 'labels': labels}, f)
@@ -103,21 +122,41 @@ def create_dataset(number_of_classes, dataset_name):
 
 
 def train_classifier(dataset_file, type, num_classes=None):
-    BASE_DIR = '/home/theoxnt/pologne/PITE/sign-language-detector-python/src/data_pickle'
+    """
+    Train a classifier (random forest or neural network) on the given dataset and save the trained model
+    
+    Args:
+        dataset_file (str): Name of the dataset file (without extension) to be used for training
+        type (str): Type of classifier to train ('f' for random forest, 'n' for neural network)
+        num_classes (int, optional): Number of classes in the dataset (required if type is 'n')
+    
+    Returns:
+        bool: True if the model was trained and saved successfully, False otherwise
+    """
+    BASE_DIR = './src/data_pickle'
     DATA_PATH = f'{BASE_DIR}/{dataset_file}.pickle'
     data_dict = pickle.load(open(DATA_PATH, 'rb'))
 
     if type == 'f':
         model = train_forest(data_dict)
-    elif type == 'ml':
-        model = train_ml(data_dict, num_classes)
-    MODEL_DIR = '/home/theoxnt/pologne/PITE/sign-language-detector-python/src/models'
+    elif type == 'n':
+        model = train_neural_network(data_dict, num_classes)
+    MODEL_DIR = './src/models'
     Path(MODEL_DIR).mkdir(parents=True, exist_ok=True)
     with open(f'{MODEL_DIR}/model_{type}.p', 'wb') as f:
         pickle.dump(model, f)
     return True
 
 def train_forest(data_dict):
+    """
+    Train a Random Forest classifier on the given dataset
+    
+    Args:
+        data_dict (dict): Dictionary containing 'data' and 'labels' for training
+        
+    Returns:
+        model (RandomForestClassifier): Trained Random Forest model
+    """
     # There are data with diff size, let delete it
     data_filtered = [data_dict['data'][i] for i in range (len(data_dict['data'])) if len(data_dict['data'][i]) == 42]
     labels_filtered = [data_dict['labels'][i] for i in range (len(data_dict['data'])) if len(data_dict['data'][i]) == 42]
@@ -134,12 +173,22 @@ def train_forest(data_dict):
 
     score = accuracy_score(y_predict, y_test)
 
-    print('{}% of samples were classified correctly !'.format(score * 100))
+    print(f'{score*100}% of samples were classified correctly !')
 
     return model
 
 
-def train_ml(data_dict, num_classes):
+def train_neural_network(data_dict, num_classes):
+    """
+    Train a Neural Network classifier on the given dataset
+    
+    Args:
+        data_dict (dict): Dictionary containing 'data' and 'labels' for training
+        num_classes (int): Number of classes in the dataset
+        
+    Returns:
+        model (BestNet): Trained Neural Network model
+    """
 
     train_dataset, test_dataset = splitting_dataset(data_dict)
 
@@ -150,7 +199,7 @@ def train_ml(data_dict, num_classes):
     loss = []
     for epoch in range(150):
         train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-        total_loss = train_model(model, opt, train_loader)
+        total_loss = epoch_trainer(model, opt, train_loader)
         loss.append(total_loss)
         print(f"epoch {epoch + 1} : loss = {total_loss}")    
 
@@ -170,9 +219,17 @@ def train_ml(data_dict, num_classes):
 
     return model
 
-def train_model(model, opt, data):
+def epoch_trainer(model, opt, data):
     """
-      Train the model on the data using the optimizer opt
+    Train the model on the data using the optimizer opt for one epoch
+
+    Args:
+        model (nn.Module): The neural network model to be trained
+        opt (torch.optim.Optimizer): The optimizer to use for training
+        data (DataLoader): The data to train on
+
+    Returns:
+        total_loss (float): The total loss for the epoch
     """
     model.train()
     total_loss = 0.0
@@ -189,39 +246,44 @@ def train_model(model, opt, data):
 
 def splitting_dataset(data):
     """
+    Process the data to create training and test datasets.
+    - Filter out data with incorrect size
     - Splitting the data (80% for training, 20% for test)
     - Transform it into tensors
     - Mix it to create two dataset so Dataloader will be able to read it 
         : one for the training, one for the test
     
-    :param data: original data
+    Args:
+        data (dict): Dictionary containing 'data' and 'labels' for processing
+    
+    Returns:
+        train_dataset (TensorDataset): Training dataset
+        test_dataset (TensorDataset): Test dataset
     """
 
-    #There are data with diff size, let delete it
+    #Filter data with incorrect size
     data_filtered = [data['data'][i] for i in range (len(data['data'])) if len(data['data'][i]) == 42]
     labels_filtered = [data['labels'][i] for i in range (len(data['data'])) if len(data['data'][i]) == 42]
     data['data'] = data_filtered
     data['labels'] = labels_filtered
 
-    #There are 80% of data for training and 20% for test
+    #80% for training, 20% for test
     len_train = math.floor(len(data['data'])*0.8)
 
-    #Excract train data and labels
+    #Exctract the data
     train_data = data['data'][:len_train]
     train_label = np.array(data['labels'][:len_train])
     test_data = data['data'][len_train:]
     test_label = np.array(data['labels'][len_train:])
 
-    #Création des tenseurs
-    # features: shape [N, input_dim] (no channel dim)
+    #Transform to tensor
     train_tensor_x = torch.tensor(train_data, dtype=torch.float32)
-    # labels for CrossEntropyLoss must be LongTensor of shape [N]
     train_tensor_y = torch.tensor(train_label, dtype=torch.long)
 
     test_tensor_x = torch.tensor(test_data, dtype=torch.float32)
     test_tensor_y = torch.tensor(test_label, dtype=torch.long)
 
-    #Création dataset
+    #Dataset creation
     train_dataset = TensorDataset(train_tensor_x, train_tensor_y)
     test_dataset = TensorDataset(test_tensor_x, test_tensor_y)
 
@@ -229,10 +291,20 @@ def splitting_dataset(data):
 
 
 def inference_classifier(type: str):
-    tool = language_tool_python.LanguageTool('fr')
+    """
+    Use the trained model to perform inference on live webcam data.
+    
+    Args:
+        type (str): Type of classifier to use ('f' for random forest, 'n' for neural network)
+        
+    Returns:
+        print the predicted sentence and corrected text
+        bool: True if inference was performed successfully, False otherwise
+    """
+    tool = language_tool_python.LanguageTool('en-US')
 
     try:
-        MODEL_DIR = '/home/theoxnt/pologne/PITE/sign-language-detector-python/src/models'
+        MODEL_DIR = './src/models'
         model = pickle.load(open(f'{MODEL_DIR}/model_{type}.p', 'rb'))
     except FileNotFoundError:
         print("Model file not found. Please train the model first.")
@@ -277,9 +349,9 @@ def inference_classifier(type: str):
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
                 mp_drawing.draw_landmarks(
-                    frame,  # image to draw
-                    hand_landmarks,  # model output
-                    mp_hands.HAND_CONNECTIONS,  # hand connections
+                    frame,  
+                    hand_landmarks,  
+                    mp_hands.HAND_CONNECTIONS, 
                     mp_drawing_styles.get_default_hand_landmarks_style(),
                     mp_drawing_styles.get_default_hand_connections_style())
 
@@ -305,11 +377,11 @@ def inference_classifier(type: str):
 
             if type == 'f':
                 prediction = model.predict([np.asarray(data_aux)])
-            elif type == 'ml':
+            elif type == 'n':
                 prediction = model(torch.FloatTensor([np.asarray(data_aux)]))
                 prediction = torch.argmax(prediction, dim=1)
             else:
-                raise ValueError("Invalid model type. Choose 'forest' or 'ml'.")
+                raise ValueError("Invalid model type. Choose 'forest' or 'n'.")
             predicted_character = labels_dict[int(prediction[0])]
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 4)
@@ -327,7 +399,6 @@ def inference_classifier(type: str):
     cap.release()
     cv2.destroyAllWindows()
     print("Predicted sentence: ", sentence_predicted)
-    # matches = tool.check(text)
     corrected_text = tool.correct(sentence_predicted)
     print('corrected text: ', corrected_text) 
     return True

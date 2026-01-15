@@ -1,12 +1,13 @@
 import pickle
 import torch
 from ModulableNet import ModulableNet
-from core import splitting_dataset, train_model
+from core import splitting_dataset, epoch_trainer
 import optuna
 from torch.utils.data import DataLoader
 
 
 def objective(trial):
+    """Objective function for Optuna hyperparameter optimization."""
     # Define the hyperparameters to tune
     learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
     batch_size = trial.suggest_categorical('batch_size', [32, 64, 128])
@@ -30,21 +31,21 @@ def objective(trial):
     # Create the model
     model = ModulableNet(input_dim=42, num_classes=25, hidden_dims=hidden_dims, activations=activations)
 
-    # Define the optimizer and loss function
+    # Define the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    # Training loop (simplified for brevity)
-    data_dict = pickle.load(open('./data_pickle/data_25.pickle', 'rb'))
+    # Load dataset and train the model
+    data_dict = pickle.load(open('./src//data_pickle/data_25.pickle', 'rb'))
     train_dataset, test_dataset = splitting_dataset(data_dict)
     model.train()
     loss = []
     for epoch in range(num_epochs):
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        total_loss = train_model(model, optimizer, train_loader)
+        total_loss = epoch_trainer(model, optimizer, train_loader)
         print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss}")
         loss.append(total_loss)
 
-    # Return a metric to minimize (e.g., validation loss)
+    # Return the accuracy on the test set (the higher, the better)
     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=True)
     model.eval()
     true_preds = 0
@@ -59,8 +60,8 @@ def objective(trial):
     accuracy = true_preds / len(test_dataset)
     return accuracy
 
-study = optuna.create_study(direction="maximize")  # on maximise l'accuracy
-study.optimize(objective, n_trials=30)  # 30 essais, tu peux augmenter
+study = optuna.create_study(direction="maximize")  
+study.optimize(objective, n_trials=30) 
 
 print("Best trial:")
 trial = study.best_trial
