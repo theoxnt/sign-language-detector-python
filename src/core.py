@@ -75,9 +75,24 @@ def create_dataset(number_of_classes, dataset_name):
     Returns:
         bool: True if the dataset was created successfully, False otherwise
     """
-    mp_hands = mp.solutions.hands
-
-    hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
+    # Use new MediaPipe API
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+    
+    # Check if hand landmarker model exists
+    MODEL_PATH = 'hand_landmarker.task'
+    if not os.path.exists(MODEL_PATH):
+        print("Hand landmarker model not found!")
+        return False
+    
+    base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options,
+        num_hands=1,
+        min_hand_detection_confidence=0.3,
+        min_hand_presence_confidence=0.3
+    )
+    detector = vision.HandLandmarker.create_from_options(options)
 
     DATA_DIR = './src/data'
 
@@ -86,37 +101,50 @@ def create_dataset(number_of_classes, dataset_name):
     for actual_label in range(number_of_classes):
         print(f'Creating dataset for label : {actual_label}')
         for dir_ in os.listdir(DATA_DIR):
-            print(f'Processing folder: {dir_}')
             DATA_DIR_path = os.path.join(DATA_DIR, dir_)
-            for img_path in os.listdir(os.path.join(DATA_DIR_path, str(actual_label))):
+            if not os.path.isdir(DATA_DIR_path):
+                continue
+            
+            class_path = os.path.join(DATA_DIR_path, str(actual_label))
+            if not os.path.exists(class_path):
+                continue
+                
+            print(f'Processing folder: {dir_}/{actual_label}')
+            for img_path in os.listdir(class_path):
+                if not img_path.endswith(('.jpg', '.jpeg', '.png')):
+                    continue
+                    
                 data_aux = []
-
                 x_ = []
                 y_ = []
-                img = cv2.imread(os.path.join(DATA_DIR_path, str(actual_label), img_path))
+                
+                img = cv2.imread(os.path.join(class_path, img_path))
+                if img is None:
+                    continue
+                    
                 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+                
+                results = detector.detect(mp_image)
+                if results.hand_landmarks:
+                    for hand_landmarks in results.hand_landmarks:
+                        for landmark in hand_landmarks:
+                            x_.append(landmark.x)
+                            y_.append(landmark.y)
 
-                results = hands.process(img_rgb)
-                if results.multi_hand_landmarks:
-                    for hand_landmarks in results.multi_hand_landmarks:
-                        for i in range(len(hand_landmarks.landmark)):
-                            x = hand_landmarks.landmark[i].x
-                            y = hand_landmarks.landmark[i].y
+                        for landmark in hand_landmarks:
+                            data_aux.append(landmark.x - min(x_))
+                            data_aux.append(landmark.y - min(y_))
 
-                            x_.append(x)
-                            y_.append(y)
-
-                        for i in range(len(hand_landmarks.landmark)):
-                            x = hand_landmarks.landmark[i].x
-                            y = hand_landmarks.landmark[i].y
-                            data_aux.append(x - min(x_))
-                            data_aux.append(y - min(y_))
-                data.append(data_aux)
-                labels.append(actual_label)
+                    data.append(data_aux)
+                    labels.append(actual_label)
+    
     DATASET_DIR = './src/data_pickle'
     Path(DATASET_DIR).mkdir(parents=True, exist_ok=True)
     with open(f'{DATASET_DIR}/{dataset_name}.pickle', 'wb') as f:
         pickle.dump({'data': data, 'labels': labels}, f)
+    
+    print(f"Dataset created with {len(data)} samples")
     return True
 
 
@@ -305,36 +333,70 @@ def inference_classifier(type: str):
 
     try:
         MODEL_DIR = './src/models'
-        model = pickle.load(open(f'{MODEL_DIR}/model_{type}.p', 'rb'))
+        model_data = pickle.load(open(f'{MODEL_DIR}/model_{type}.p', 'rb'))
+        # Handle both dict format {'model': model} and direct model format
+        if isinstance(model_data, dict) and 'model' in model_data:
+            model = model_data['model']
+        else:
+            model = model_data
     except FileNotFoundError:
         print("Model file not found. Please train the model first.")
         return False
 
     cap = cv2.VideoCapture(0)
 
-    mp_hands = mp.solutions.hands
-    mp_drawing = mp.solutions.drawing_utils
-    mp_drawing_styles = mp.solutions.drawing_styles
-
-    hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
+    # Use new MediaPipe API
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+    
+    # Check if hand landmarker model exists
+    MODEL_PATH = 'hand_landmarker.task'
+    if not os.path.exists(MODEL_PATH):
+        print("Hand landmarker model not found. Downloading...")
+        import urllib.request
+        url = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
+        try:
+            urllib.request.urlretrieve(url, MODEL_PATH)
+        except:
+            print("Failed to download model. Please download manually.")
+            return False
+    
+    base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options,
+        num_hands=1,
+        min_hand_detection_confidence=0.3,
+        min_hand_presence_confidence=0.3,
+        running_mode=vision.RunningMode.VIDEO
+    )
+    detector = vision.HandLandmarker.create_from_options(options)
 
     labels_dict = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 9: 'K', 10: 'L', 11: 'M', 12: 'N', 13: 'O', 14: 'P', 15: 'Q', 16: 'R', 17: 'S', 18: 'T', 19: 'U', 20: 'V', 21: 'W', 22: 'X', 23: 'Y', 24: ' '}
-    while True:
-            ret, frame = cap.read()
-            cv2.putText(frame, 'Ready? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
-                        cv2.LINE_AA)
-            cv2.imshow('frame', frame)
-            if cv2.waitKey(25) == ord('q'):
-                break
-    sentence_predicted = ""
-    last_time = time.time()
+    
+    # Wait for user to press Q to start
     while True:
         ret, frame = cap.read()
-        cv2.putText(frame, 'Finished? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
-                        cv2.LINE_AA)
-        cv2.putText(frame, sentence_predicted, (100, 400), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
-                        cv2.LINE_AA)
+        cv2.putText(frame, 'Ready? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
+                    cv2.LINE_AA)
+        cv2.imshow('frame', frame)
         if cv2.waitKey(25) == ord('q'):
+            break
+    
+    sentence_predicted = ""
+    last_time = time.time()
+    frame_timestamp_ms = 0
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+            
+        cv2.putText(frame, 'Finished? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
+                    cv2.LINE_AA)
+        cv2.putText(frame, sentence_predicted, (100, 400), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
+                    cv2.LINE_AA)
+        
+        if cv2.waitKey(1) == ord('q'):
             break
 
         data_aux = []
@@ -342,59 +404,59 @@ def inference_classifier(type: str):
         y_ = []
 
         H, W, _ = frame.shape
-
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Convert to MediaPipe Image
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+        
+        # Detect hands
+        frame_timestamp_ms += 33  # Approximate 30 FPS
+        results = detector.detect_for_video(mp_image, frame_timestamp_ms)
+        
+        if results.hand_landmarks:
+            for hand_landmarks in results.hand_landmarks:
+                # Draw landmarks on frame
+                for landmark in hand_landmarks:
+                    x_px = int(landmark.x * W)
+                    y_px = int(landmark.y * H)
+                    cv2.circle(frame, (x_px, y_px), 5, (0, 255, 0), -1)
+                
+                # Extract features
+                for landmark in hand_landmarks:
+                    x_.append(landmark.x)
+                    y_.append(landmark.y)
 
-        results = hands.process(frame_rgb)
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                mp_drawing.draw_landmarks(
-                    frame,  
-                    hand_landmarks,  
-                    mp_hands.HAND_CONNECTIONS, 
-                    mp_drawing_styles.get_default_hand_landmarks_style(),
-                    mp_drawing_styles.get_default_hand_connections_style())
+                for landmark in hand_landmarks:
+                    data_aux.append(landmark.x - min(x_))
+                    data_aux.append(landmark.y - min(y_))
 
-            for hand_landmarks in results.multi_hand_landmarks:
-                for i in range(len(hand_landmarks.landmark)):
-                    x = hand_landmarks.landmark[i].x
-                    y = hand_landmarks.landmark[i].y
+                x1 = int(min(x_) * W) - 10
+                y1 = int(min(y_) * H) - 10
+                x2 = int(max(x_) * W) - 10
+                y2 = int(max(y_) * H) - 10
 
-                    x_.append(x)
-                    y_.append(y)
+                # Make prediction
+                if len(data_aux) == 42:  # Ensure correct feature size
+                    if type == 'f':
+                        prediction = model.predict([np.asarray(data_aux)])
+                    elif type == 'n':
+                        prediction = model(torch.FloatTensor([np.asarray(data_aux)]))
+                        prediction = torch.argmax(prediction, dim=1)
+                    else:
+                        raise ValueError("Invalid model type. Choose 'f' or 'n'.")
+                    
+                    predicted_character = labels_dict[int(prediction[0])]
 
-                for i in range(len(hand_landmarks.landmark)):
-                    x = hand_landmarks.landmark[i].x
-                    y = hand_landmarks.landmark[i].y
-                    data_aux.append(x - min(x_))
-                    data_aux.append(y - min(y_))
-
-            x1 = int(min(x_) * W) - 10
-            y1 = int(min(y_) * H) - 10
-
-            x2 = int(max(x_) * W) - 10
-            y2 = int(max(y_) * H) - 10
-
-            if type == 'f':
-                prediction = model.predict([np.asarray(data_aux)])
-            elif type == 'n':
-                prediction = model(torch.FloatTensor([np.asarray(data_aux)]))
-                prediction = torch.argmax(prediction, dim=1)
-            else:
-                raise ValueError("Invalid model type. Choose 'forest' or 'n'.")
-            predicted_character = labels_dict[int(prediction[0])]
-
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 4)
-            cv2.putText(frame, predicted_character, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
-                        cv2.LINE_AA)
-            elapsed = time.time() - last_time
-            if elapsed >= 3:
-                sentence_predicted += predicted_character
-                last_time = time.time()
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 4)
+                    cv2.putText(frame, predicted_character, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
+                                cv2.LINE_AA)
+                    
+                    elapsed = time.time() - last_time
+                    if elapsed >= 3:
+                        sentence_predicted += predicted_character
+                        last_time = time.time()
 
         cv2.imshow('frame', frame)
-        cv2.waitKey(1)
-
 
     cap.release()
     cv2.destroyAllWindows()
