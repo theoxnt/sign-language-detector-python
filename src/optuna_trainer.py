@@ -1,7 +1,7 @@
 import pickle
 import torch
-from ModulableNet import ModulableNet
-from core import splitting_dataset, epoch_trainer
+from src.ModulableNet import ModulableNet
+from src.core import splitting_dataset, epoch_trainer
 import optuna
 from torch.utils.data import DataLoader
 
@@ -11,8 +11,8 @@ def objective(trial):
     # Define the hyperparameters to tune
     learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
     batch_size = trial.suggest_categorical('batch_size', [32, 64, 128])
-    num_epochs = trial.suggest_int('num_epochs', 5, 150)
-    n_layers = trial.suggest_int("n_layers", 1, 5)
+    num_epochs = trial.suggest_int('num_epochs', 5, 250)
+    n_layers = trial.suggest_int("n_layers", 1, 7)
 
     hidden_dims = []
     activations = []

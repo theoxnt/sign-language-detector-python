@@ -1,6 +1,5 @@
 # Data files
 src/data_pickle
-src/data
 
 # Python Cache 
 __pycache__/
