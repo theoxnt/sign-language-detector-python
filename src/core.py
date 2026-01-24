@@ -30,13 +30,33 @@ def collect_images(num_classes, imgs_per_class, folder_name):
     Returns:
         bool: True if the images were collected successfully, False otherwise
     """
+    if type(num_classes) is not int: 
+        raise ValueError("num_classes should be an integer")
+    
+    if num_classes < 1:
+        raise ValueError("num_classes should be >= 1")
+    
+    if type(imgs_per_class) is not int: 
+        raise ValueError("imgs_per_class should be an integer")
+    
+    if imgs_per_class < 1:
+        raise ValueError("imgs_per_class should be >= 1") 
+    
+    if type(folder_name) is not str: 
+        raise ValueError("folder_name should be a string")
+    
+    if folder_name == "":
+        raise ValueError("folder_name should not be empty")
+    
     DATA_DIR = os.path.join('./src/data', folder_name)
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
+
     cap = cv2.VideoCapture(0)
+
     if not cap.isOpened():
-        print("Cannot open camera")
-        exit()
+        raise RuntimeError("Cannot open camera")
+    
     for j in range(num_classes):
         if not os.path.exists(os.path.join(DATA_DIR, str(j))):
             os.makedirs(os.path.join(DATA_DIR, str(j)))
@@ -46,8 +66,7 @@ def collect_images(num_classes, imgs_per_class, folder_name):
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
+                raise RuntimeError("Can't receive frame (ret == False)")
             cv2.putText(frame, 'Ready? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
                         cv2.LINE_AA)
             cv2.imshow('frame', frame)
@@ -57,6 +76,8 @@ def collect_images(num_classes, imgs_per_class, folder_name):
         counter = 0
         while counter < imgs_per_class:
             ret, frame = cap.read()
+            if not ret:
+                raise RuntimeError("Can't receive frame (ret == False)")
             cv2.imshow('frame', frame)
             cv2.waitKey(25)
             cv2.imwrite(os.path.join(DATA_DIR, str(j), 'f{counter}.jpg'), frame)
@@ -79,19 +100,41 @@ def create_dataset(number_of_classes, dataset_name):
     Returns:
         bool: True if the dataset was created successfully, False otherwise
     """
+    if type(number_of_classes) is not int: 
+        raise ValueError("number_of_classes should be an integer")
+    
+    if number_of_classes < 1:
+        raise ValueError("number_of_classes should be >= 1")
+
+    if type(dataset_name) is not str:
+        raise ValueError("dataset_name should be a string")
+
+    if dataset_name == "":
+        raise ValueError("dataset_name should not be empty")
     mp_hands = mp.solutions.hands
 
     hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
     DATA_DIR = './src/data'
+    if not os.path.exists(DATA_DIR):
+        raise RuntimeError(f"There isn't a data folder at : {DATA_DIR}")
 
     data = []
     labels = []
     for actual_label in range(number_of_classes):
+
         print(f'Creating dataset for label : {actual_label}')
+
+        if len(os.listdir(DATA_DIR)) == 0:
+            raise RuntimeError(f'{DATA_DIR} is empty')
+
         for dir_ in os.listdir(DATA_DIR):
             print(f'Processing folder: {dir_}')
             DATA_DIR_path = os.path.join(DATA_DIR, dir_)
+
+            if len(os.listdir(DATA_DIR_path)) == 0:
+                raise RuntimeError(f'{DATA_DIR_path} is empty')
+
             for img_path in os.listdir(os.path.join(DATA_DIR_path, str(actual_label))):
                 data_aux = []
 
@@ -101,20 +144,23 @@ def create_dataset(number_of_classes, dataset_name):
                 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
                 results = hands.process(img_rgb)
-                if results.multi_hand_landmarks:
-                    for hand_landmarks in results.multi_hand_landmarks:
-                        for i in range(len(hand_landmarks.landmark)):
-                            x = hand_landmarks.landmark[i].x
-                            y = hand_landmarks.landmark[i].y
 
-                            x_.append(x)
-                            y_.append(y)
+                if not results:
+                    raise RuntimeError("Hands process didn't work")
 
-                        for i in range(len(hand_landmarks.landmark)):
-                            x = hand_landmarks.landmark[i].x
-                            y = hand_landmarks.landmark[i].y
-                            data_aux.append(x - min(x_))
-                            data_aux.append(y - min(y_))
+                for hand_landmarks in results.multi_hand_landmarks:
+                    for i in range(len(hand_landmarks.landmark)):
+                        x = hand_landmarks.landmark[i].x
+                        y = hand_landmarks.landmark[i].y
+
+                        x_.append(x)
+                        y_.append(y)
+
+                    for i in range(len(hand_landmarks.landmark)):
+                        x = hand_landmarks.landmark[i].x
+                        y = hand_landmarks.landmark[i].y
+                        data_aux.append(x - min(x_))
+                        data_aux.append(y - min(y_))
                 data.append(data_aux)
                 labels.append(actual_label)
     DATASET_DIR = './src/data_pickle'
@@ -139,8 +185,8 @@ def train_classifier(dataset_file, type, num_classes=None):
     """
     BASE_DIR = './src/data_pickle'
     DATA_PATH = f'{BASE_DIR}/{dataset_file}.pickle'
-    data_dict = pickle.load(open(DATA_PATH, 'rb'))
-
+    with open(DATA_PATH, 'rb') as f:
+        data_dict = pickle.load(f)
     if type == 'f':
         model = train_forest(data_dict)
     elif type == 'n':
@@ -161,11 +207,44 @@ def train_forest(data_dict):
     Returns:
         model (RandomForestClassifier): Trained Random Forest model
     """
-    # There are data with diff size, let delete it
-    data_filtered = [data_dict['data'][i] for i in range (len(data_dict['data'])) if len(data_dict['data'][i]) == 42]
-    labels_filtered = [data_dict['labels'][i] for i in range (len(data_dict['data'])) if len(data_dict['data'][i]) == 42]
+    if not isinstance(data_dict, dict):
+        raise TypeError("data_dict must be a dictionary")
+    
+    if not data_dict:
+        raise ValueError("Data_dict should not be empty")
+    
+    if 'data' not in data_dict or 'labels' not in data_dict:
+        raise KeyError("data_dict must contain 'data' and 'labels'")
+    
+    if not data_dict['data']:
+        raise ValueError("Data in data_dict should not be empty")
+    
+    if not data_dict['labels']:
+        raise ValueError("Labels in data_dict should not be empty")
+    
+    if len(data_dict['data']) != len(data_dict['labels']):
+        raise ValueError("Data and labels do not have the same length")
+    
+    data_filtered = [
+        data_dict['data'][i] 
+        for i in range (len(data_dict['data'])) 
+        if len(data_dict['data'][i]) == 42
+        ]
+
+    if len(data_filtered) == 0:
+        raise ValueError("No samples with 42 features after filtering")
+
+    labels_filtered = [
+        data_dict['labels'][i] 
+        for i in range (len(data_dict['data'])) 
+        if len(data_dict['data'][i]) == 42
+        ]
+    
     data = np.asarray(data_filtered)
     labels = np.asarray(labels_filtered)
+
+    if len(np.unique(labels)) < 2:
+        raise ValueError("At least two classes are required for training")
 
     x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, shuffle=True, stratify=labels)
 

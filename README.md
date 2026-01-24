@@ -67,6 +67,9 @@ SIGN-LANGUAGE-DETECTOR-PYTHON
 ├── README.md
 └── requirements.txt
 ```
+## Tests
+run : pip install pytest
+run : python test_core.py
 
 ## License 
 This project uses the MIT License
