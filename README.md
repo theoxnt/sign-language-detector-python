@@ -68,8 +68,14 @@ SIGN-LANGUAGE-DETECTOR-PYTHON
 └── requirements.txt
 ```
 ## Tests
-run : pip install pytest
-In the tests directory, run : pytest test_core.py
+To run the tests, you need to install pytest : 
+```bash
+pip install pytest
+```
+You need to be in the test folder and the execute : 
+```bash
+pytest
+```
 
 ## License 
 This project uses the MIT License
