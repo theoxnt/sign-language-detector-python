@@ -69,7 +69,7 @@ SIGN-LANGUAGE-DETECTOR-PYTHON
 ```
 ## Tests
 run : pip install pytest
-run : python test_core.py
+In the tests directory, run : pytest test_core.py
 
 ## License 
 This project uses the MIT License

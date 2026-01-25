@@ -31,19 +31,19 @@ def collect_images(num_classes, imgs_per_class, folder_name):
         bool: True if the images were collected successfully, False otherwise
     """
     if type(num_classes) is not int: 
-        raise ValueError("num_classes should be an integer")
+        raise TypeError("num_classes should be an integer")
     
     if num_classes < 1:
         raise ValueError("num_classes should be >= 1")
     
     if type(imgs_per_class) is not int: 
-        raise ValueError("imgs_per_class should be an integer")
+        raise TypeError("imgs_per_class should be an integer")
     
     if imgs_per_class < 1:
         raise ValueError("imgs_per_class should be >= 1") 
     
     if type(folder_name) is not str: 
-        raise ValueError("folder_name should be a string")
+        raise TypeError("folder_name should be a string")
     
     if folder_name == "":
         raise ValueError("folder_name should not be empty")
@@ -101,13 +101,13 @@ def create_dataset(number_of_classes, dataset_name):
         bool: True if the dataset was created successfully, False otherwise
     """
     if type(number_of_classes) is not int: 
-        raise ValueError("number_of_classes should be an integer")
+        raise TypeError("number_of_classes should be an integer")
     
     if number_of_classes < 1:
         raise ValueError("number_of_classes should be >= 1")
 
     if type(dataset_name) is not str:
-        raise ValueError("dataset_name should be a string")
+        raise TypeError("dataset_name should be a string")
 
     if dataset_name == "":
         raise ValueError("dataset_name should not be empty")
@@ -171,7 +171,7 @@ def create_dataset(number_of_classes, dataset_name):
 
 
 
-def train_classifier(dataset_file, type, num_classes=None):
+def train_classifier(dataset_file, type_classifier, num_classes=None):
     """
     Train a classifier (random forest or neural network) on the given dataset and save the trained model
     
@@ -183,17 +183,31 @@ def train_classifier(dataset_file, type, num_classes=None):
     Returns:
         bool: True if the model was trained and saved successfully, False otherwise
     """
+    if not type(dataset_file) is str: 
+        raise TypeError("dataset_file should be a string")
+    if dataset_file == "":
+        raise ValueError("dataset_file should not be empty")
+    if not type(type_classifier) is str: 
+        raise TypeError("type_classifier should be a string")
+    if not (type_classifier == 'f' or type_classifier == 'n'):
+        raise ValueError("type_classifier should be equal to 'f' or 'n'")
+    if num_classes != None:
+        if type(num_classes) is not int:
+            raise TypeError("num_classes should be an integer")
+        if num_classes < 1:
+            raise ValueError("num_classes should be >= 1")
+        
     BASE_DIR = './src/data_pickle'
     DATA_PATH = f'{BASE_DIR}/{dataset_file}.pickle'
     with open(DATA_PATH, 'rb') as f:
         data_dict = pickle.load(f)
-    if type == 'f':
+    if type_classifier == 'f':
         model = train_forest(data_dict)
-    elif type == 'n':
+    elif type_classifier == 'n':
         model = train_neural_network(data_dict, num_classes)
     MODEL_DIR = './src/models'
     Path(MODEL_DIR).mkdir(parents=True, exist_ok=True)
-    with open(f'{MODEL_DIR}/model_{type}.p', 'wb') as f:
+    with open(f'{MODEL_DIR}/model_{type_classifier}.p', 'wb') as f:
         pickle.dump(model, f)
     return True
 
@@ -272,6 +286,23 @@ def train_neural_network(data_dict, num_classes):
     Returns:
         model (BestNet): Trained Neural Network model
     """
+    if not isinstance(data_dict, dict):
+        raise TypeError("data_dict must be a dictionary")
+    
+    if not data_dict:
+        raise ValueError("Data_dict should not be empty")
+    
+    if 'data' not in data_dict or 'labels' not in data_dict:
+        raise KeyError("data_dict must contain 'data' and 'labels'")
+    
+    if not data_dict['data']:
+        raise ValueError("Data in data_dict should not be empty")
+    
+    if not data_dict['labels']:
+        raise ValueError("Labels in data_dict should not be empty")
+    
+    if len(data_dict['data']) != len(data_dict['labels']):
+        raise ValueError("Data and labels do not have the same length") 
 
     train_dataset, test_dataset = splitting_dataset(data_dict)
 
@@ -308,12 +339,20 @@ def epoch_trainer(model, opt, data):
 
     Args:
         model (nn.Module): The neural network model to be trained
-        opt (torch.optim.Optimizer): The optimizer to use for training
+        opt (torch.optim): The optimizer to use for training
         data (DataLoader): The data to train on
 
     Returns:
         total_loss (float): The total loss for the epoch
     """
+    if not isinstance(model, nn.Module):
+        raise TypeError("model must be an instance of nn.Module")
+
+    if not isinstance(opt, torch.optim.Optimizer):
+        raise TypeError("opt must be an instance of torch.optim.Optimizer")
+
+    if not isinstance(data, DataLoader):
+        raise TypeError("data must be an instance of torch.utils.data.DataLoader")
     model.train()
     total_loss = 0.0
     criterion = nn.CrossEntropyLoss()
@@ -343,10 +382,32 @@ def splitting_dataset(data):
         train_dataset (TensorDataset): Training dataset
         test_dataset (TensorDataset): Test dataset
     """
-
+    if not isinstance(data, dict):
+        raise TypeError("data must be a dictionary")
+    
+    if not data:
+        raise ValueError("data should not be empty")
+    
+    if 'data' not in data or 'labels' not in data:
+        raise KeyError("data must contain 'data' and 'labels'")
+    
+    if not data['data']:
+        raise ValueError("Data in data should not be empty")
+    
+    if not data['labels']:
+        raise ValueError("Labels in data should not be empty")
+    
+    if len(data['data']) != len(data['labels']):
+        raise ValueError("Data and labels do not have the same length")
     #Filter data with incorrect size
     data_filtered = [data['data'][i] for i in range (len(data['data'])) if len(data['data'][i]) == 42]
     labels_filtered = [data['labels'][i] for i in range (len(data['data'])) if len(data['data'][i]) == 42]
+
+    if len(data_filtered) == 0:
+        raise ValueError("No samples with 42 features after filtering")
+    if len(np.unique(labels_filtered)) < 2:
+        raise ValueError("At least two classes are required for training")
+    
     data['data'] = data_filtered
     data['labels'] = labels_filtered
 
@@ -373,27 +434,32 @@ def splitting_dataset(data):
     return train_dataset, test_dataset
 
 
-def inference_classifier(type: str):
+def inference_classifier(type_classifier: str):
     """
     Use the trained model to perform inference on live webcam data.
     
     Args:
-        type (str): Type of classifier to use ('f' for random forest, 'n' for neural network)
+        type_classifier (str): Type of classifier to use ('f' for random forest, 'n' for neural network)
         
     Returns:
         print the predicted sentence and corrected text
         bool: True if inference was performed successfully, False otherwise
     """
+    if not type(type_classifier) is str:
+        raise TypeError("type_classifier must be a string")
+    if not (type_classifier == 'f' or type_classifier == 'n'):
+        raise ValueError("type_classifier must be equal to 'n' or 'f'")
     tool = language_tool_python.LanguageTool('en-US')
 
     try:
         MODEL_DIR = './src/models'
-        model = pickle.load(open(f'{MODEL_DIR}/model_{type}.p', 'rb'))
+        model = pickle.load(open(f'{MODEL_DIR}/model_{type_classifier}.p', 'rb'))
     except FileNotFoundError:
-        print("Model file not found. Please train the model first.")
-        return False
+        raise RuntimeError("Model file not found. Please train the model first.")
 
     cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Cannot open camera")
 
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
@@ -404,20 +470,24 @@ def inference_classifier(type: str):
     labels_dict = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 9: 'K', 10: 'L', 11: 'M', 12: 'N', 13: 'O', 14: 'P', 15: 'Q', 16: 'R', 17: 'S', 18: 'T', 19: 'U', 20: 'V', 21: 'W', 22: 'X', 23: 'Y', 24: ' '}
     while True:
             ret, frame = cap.read()
+            if not ret: 
+                raise RuntimeError("Can't read the frame (ret = False)")
             cv2.putText(frame, 'Ready? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
                         cv2.LINE_AA)
             cv2.imshow('frame', frame)
-            if cv2.waitKey(25) == ord('q'):
+            if cv2.waitKey(25) == ord('q'): 
                 break
     sentence_predicted = ""
     last_time = time.time()
     while True:
         ret, frame = cap.read()
+        if not ret: 
+                raise RuntimeError("Can't read the frame (ret = False)")
         cv2.putText(frame, 'Finished? Press "Q" ! :)', (100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
                         cv2.LINE_AA)
         cv2.putText(frame, sentence_predicted, (100, 400), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3,
                         cv2.LINE_AA)
-        if cv2.waitKey(25) == ord('q'):
+        if cv2.waitKey(25) == ord('q'): 
             break
 
         data_aux = []
@@ -429,6 +499,8 @@ def inference_classifier(type: str):
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         results = hands.process(frame_rgb)
+        if not results: 
+            raise RuntimeError("Hands process didn't work")
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
                 mp_drawing.draw_landmarks(
@@ -458,13 +530,15 @@ def inference_classifier(type: str):
             x2 = int(max(x_) * W) - 10
             y2 = int(max(y_) * H) - 10
 
-            if type == 'f':
+            if type_classifier == 'f':
                 prediction = model.predict([np.asarray(data_aux)])
-            elif type == 'n':
+                if len(prediction) > 1:
+                    raise RuntimeError("The model didn't predict a single value")
+            elif type_classifier == 'n':
                 prediction = model(torch.FloatTensor([np.asarray(data_aux)]))
                 prediction = torch.argmax(prediction, dim=1)
             else:
-                raise ValueError("Invalid model type. Choose 'forest' or 'n'.")
+                raise ValueError("Invalid model type_classifier. Choose 'forest' or 'n'.")
             predicted_character = labels_dict[int(prediction[0])]
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 4)

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, call, patch
 
 sys.path.append('..')
 
+import mediapipe as mp
 from src.core import *
 import numpy as np
 from pathlib import Path
@@ -36,6 +37,11 @@ def data_dict():
         'data': data,
         'labels': labels
     }
+
+@pytest.fixture
+def train_loader(data_dict):
+    train_dataset, _ = splitting_dataset(data_dict)
+    return DataLoader(train_dataset, batch_size=64, shuffle=True)
 
 
 # -------------------------
@@ -95,11 +101,11 @@ def test_collect_images_ok(
 @pytest.mark.parametrize(
     "num_classes, img_per_classes, folder_name, expected_exception, match_msg",
     [
-        ("", 2, "folder_name", ValueError, "num_classes should be an integer"),
+        ("", 2, "folder_name", TypeError, "num_classes should be an integer"),
         (0, 2, "folder_name", ValueError, "num_classes should be >= 1"),
-        (2, "", "folder_name", ValueError, "imgs_per_class should be an integer"),
+        (2, "", "folder_name", TypeError, "imgs_per_class should be an integer"),
         (2, 0, "folder_name", ValueError, "imgs_per_class should be >= 1"),
-        (2, 3, 4, ValueError, "folder_name should be a string"),
+        (2, 3, 4, TypeError, "folder_name should be a string"),
         (2, 3, "", ValueError, "folder_name should not be empty")
 
     ]
@@ -109,7 +115,9 @@ def test_collect_images_parameters_errors(num_classes, img_per_classes, folder_n
         collect_images(num_classes, img_per_classes, folder_name)
 
 @patch('src.core.cv2.VideoCapture')
-def test_collect_images_camera_error(mock_videoCapture):
+@patch('src.core.os.path.exists')
+def test_collect_images_camera_error(mock_exists, mock_videoCapture):
+    mock_exists.return_value = True
     mock_videoCapture.return_value.isOpened.return_value = False
     with pytest.raises(RuntimeError, match="Cannot open camera"):
         collect_images(2, 3, "folder_name")
@@ -194,9 +202,9 @@ def test_create_dataset_ok(
 @pytest.mark.parametrize(
     "number_of_classes, dataset_name, expected_exception, match_msg",
     [
-        ("", "dataset_name", ValueError, "number_of_classes should be an integer"),
+        ("", "dataset_name", TypeError, "number_of_classes should be an integer"),
         (0, "dataset_name", ValueError, "number_of_classes should be >= 1"),
-        (2, 3, ValueError, "dataset_name should be a string"),
+        (2, 3, TypeError, "dataset_name should be a string"),
         (2, "", ValueError, "dataset_name should not be empty")
     ]
 )
@@ -274,11 +282,14 @@ def test_create_dataset_hands_process_error(
 # -------------------------
 # Tests for train_classifier
 # -------------------------
+
 @patch("builtins.open")
 @patch("pickle.dump")
 @patch("src.core.train_forest")
 @patch("pickle.load")
-def test_train_classifier_forest(
+@patch("src.core.Path.mkdir")
+def test_train_classifier_forest_ok(
+    mock_path_mkdir,
     mock_pickle_load,
     mock_train_forest,
     mock_pickle_dump,
@@ -292,16 +303,25 @@ def test_train_classifier_forest(
     result = train_classifier(dataset_file, training_type, num_classes)
 
     assert result is True
+    assert mock_open.call_count == 2 
+    expected_calls= [
+        call('./src/data_pickle/dataset_test.pickle', 'rb'),
+        call('./src/models/model_f.p', 'wb')
+    ]
+    assert mock_open.has_calls(expected_calls)
     mock_pickle_load.assert_called_once()
     mock_train_forest.assert_called_once()
     mock_pickle_dump.assert_called_once()
+    mock_path_mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
 
 @patch("builtins.open")
 @patch("pickle.dump")
 @patch("src.core.train_neural_network")
 @patch("pickle.load")
-def test_train_classifier_neural_network(
+@patch("src.core.Path.mkdir")
+def test_train_classifier_neural_network_ok(
+    mock_path_mkdir,
     mock_pickle_load,
     mock_train_neural_network,
     mock_pickle_dump,
@@ -315,9 +335,31 @@ def test_train_classifier_neural_network(
     result = train_classifier(dataset_file, training_type, num_classes)
 
     assert result is True
+    assert mock_open.call_count == 2 
+    expected_calls= [
+        call('./src/data_pickle/dataset_test.pickle', 'rb'),
+        call('./src/models/model_n.p', 'wb')
+    ]
+    assert mock_open.has_calls(expected_calls)
     mock_pickle_load.assert_called_once()
     mock_train_neural_network.assert_called_once()
     mock_pickle_dump.assert_called_once()
+    mock_path_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+@pytest.mark.parametrize(
+        "dataset_file, type_classifier, num_classes, expected_errors, match_msg",
+        [
+            (1, "f", None, TypeError, "dataset_file should be a string"),
+            ("", "f", None ,ValueError, "dataset_file should not be empty"),
+            ("dataset_file", 1, None, TypeError, "type_classifier should be a string"),
+            ("dataset_file", "dataset_file", None, ValueError, "type_classifier should be equal to 'f' or 'n'"),
+            ("dataset_file", 'f', "", TypeError, "num_classes should be an integer"),
+            ("dataset_file", 'f', 0, ValueError, "num_classes should be >= 1")
+        ]
+)
+def test_train_classifier_errors_parameters(dataset_file, type_classifier, num_classes, expected_errors, match_msg):
+    with pytest.raises(expected_errors, match=match_msg):
+        train_classifier(dataset_file, type_classifier, num_classes)
 
 
 
@@ -355,8 +397,26 @@ def test_train_forest_errors(data_dict, expected_exception, match_msg):
 # -------------------------
 # Tests for train_neural_network
 # -------------------------
-def test_train_neural_network():
-    assert True
+@patch("src.core.epoch_trainer")
+def test_train_neural_network_ok(mock_epoch_trainer, data_dict):
+    model = train_neural_network(data_dict, 3)
+    assert isinstance(model, BestNet)
+    assert mock_epoch_trainer.call_count == 150
+
+@pytest.mark.parametrize(
+    "data_dict, num_classes, expected_exception, match_msg",
+    [
+        ([], 2, TypeError, "data_dict must be a dictionary"),
+        ({}, 2, ValueError, "Data_dict should not be empty"),
+        ({'wrong_key1': [], 'wrong_key2': []}, 2, KeyError, "data_dict must contain 'data' and 'labels'"),
+        ({'data': [], 'labels': []}, 2, ValueError, "Data in data_dict should not be empty"),
+        ({'data': [1], 'labels': []}, 2, ValueError, "Labels in data_dict should not be empty"),
+        ({'data': [1, 2], 'labels': [3]}, 2, ValueError, "Data and labels do not have the same length"),
+    ]
+)
+def test_train_naural_network_errors(data_dict, num_classes, expected_exception, match_msg):
+    with pytest.raises(expected_exception, match=match_msg):
+        train_neural_network(data_dict, num_classes)
 
 
 
@@ -364,17 +424,70 @@ def test_train_neural_network():
 # -------------------------
 # Tests for epoch_trainer
 # -------------------------
-def test_epoch_trainer():
-    assert True
+def test_epoch_trainer_ok(train_loader):
+    model = BestNet(42, 3)
+    opt = optim.SGD(model.parameters(), lr=0.0016, momentum=0.9)
 
+    model.eval()
+    total_loss = epoch_trainer(model, opt, train_loader)
 
+    assert type(total_loss) is float
+    assert model.training is True
+    assert math.isfinite(total_loss)
+    assert total_loss >= 0
+
+@pytest.mark.parametrize(
+        "model, opt, data, expected_errors, match_msg",
+        [
+            ("", "", "", TypeError, "model must be an instance of nn.Module"),
+            (BestNet(42, 3), "", "", TypeError, "opt must be an instance of torch.optim.Optimizer"),
+            (BestNet(42, 3), optim.SGD(BestNet(42, 3).parameters(), lr=0.0016, momentum=0.9), "", TypeError, "data must be an instance of torch.utils.data.DataLoader"),
+        ]
+)
+def test_epoch_trainer_errors_parameters(model, opt, data, expected_errors, match_msg):
+    with pytest.raises(expected_errors, match=match_msg):
+        epoch_trainer(model, opt, data)
 
 
 # -------------------------
 # Tests for splitting_dataset
 # -------------------------
-def test_splitting_dataset():
-    assert True
+def test_splitting_dataset(data_dict):
+    train_dataset, test_dataset = splitting_dataset(data_dict)
+
+    assert isinstance(train_dataset, TensorDataset)
+    assert isinstance(test_dataset, TensorDataset)
+
+    assert len(train_dataset) + len(test_dataset) == len(data_dict['data'])
+    assert len(train_dataset) != 0 
+    assert len(test_dataset) != 0 
+    total = len(data_dict['data'])
+    assert len(train_dataset) == math.floor(0.8 * total)
+    assert len(test_dataset) == total - len(train_dataset)
+
+    x, y = train_dataset[0]
+    assert isinstance(x, torch.Tensor)
+    assert isinstance(y, torch.Tensor)
+    assert x.shape == (42,)
+    assert y.dim() == 0 
+
+
+@pytest.mark.parametrize(
+    "data_dict, expected_exception, match_msg",
+    [
+        ([], TypeError, "data must be a dictionary"),
+        ({}, ValueError, "data should not be empty"),
+        ({'wrong_key1': [], 'wrong_key2': []}, KeyError, "data must contain 'data' and 'labels'"),
+        ({'data': [], 'labels': []}, ValueError, "Data in data should not be empty"),
+        ({'data': [1], 'labels': []}, ValueError, "Labels in data should not be empty"),
+        ({'data': [1, 2], 'labels': [3]}, ValueError, "Data and labels do not have the same length"),
+        ({'data': [[1, 2], [3, 4]], 'labels': [0, 1]}, ValueError, "No samples with 42 features after filtering"),
+        ({'data': [np.random.rand(42)], 'labels': [4]}, ValueError, "At least two classes are required for training")
+    ]
+)
+def test_splitting_dataset_errors_parameters(data_dict, expected_exception, match_msg):
+    with pytest.raises(expected_exception, match=match_msg):
+        splitting_dataset(data_dict)
 
 
 
@@ -382,5 +495,153 @@ def test_splitting_dataset():
 # -------------------------
 # Tests for inference_classifier
 # -------------------------
-def test_inference_classifier():
-    assert True
+@patch("src.core.cv2.VideoCapture")
+@patch("src.core.pickle.load")
+@patch("src.core.open")
+@patch("src.core.cv2.waitKey")
+@patch("src.core.cv2.cvtColor")
+@patch("mediapipe.solutions.hands.Hands.process")
+@patch("src.core.cv2.imshow")
+@patch("mediapipe.solutions.drawing_utils.draw_landmarks")
+@patch("mediapipe.solutions.drawing_styles")
+@patch('src.core.cv2.destroyAllWindows')
+def test_inference_classifier_ok(
+    mock_destroy_allWindows,
+    mock_drawing_styles, 
+    mock_draw_landmarks,
+    mock_imshow,
+    mock_hands_process,
+    mock_cvtColor,
+    mock_waitKey,
+    mock_open,
+    mock_pickle_load,
+    mock_videoCapture
+):
+    mock_open.return_value.__enter__.return_value = "fake_file"
+    fake_model_f = MagicMock()
+    mock_pickle_load.return_value = fake_model_f
+
+    mock_videoCapture.return_value.isOpened.return_value = True
+
+    fake_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    mock_videoCapture.return_value.read.return_value = (True, fake_frame)
+
+    mock_waitKey.side_effect = [ord('q'), 1, 1, ord('q')]
+
+    mock_cvtColor.return_value = fake_frame
+
+    fake_hand_landmarks = MagicMock()
+    fake_hand_landmarks.landmark = [MagicMock(x=0.1*i, y=0.05*i) for i in range(21)]
+    mock_hands_process.return_value = MagicMock(multi_hand_landmarks=[fake_hand_landmarks])
+
+    fake_model_f.predict.return_value = [0] 
+
+    result = inference_classifier('f')
+
+    assert result is True
+    mock_destroy_allWindows.assert_called_once()
+    mock_videoCapture.return_value.release.assert_called_once()
+
+@pytest.mark.parametrize(
+    "type_classifier, expected_errors, match_msg",
+    [
+        (1, TypeError, "type_classifier must be a string"),
+        ("adeda", ValueError, "type_classifier must be equal to 'n' or 'f'")
+    ]
+)
+def test_inference_classifier_errors_parameters(type_classifier, expected_errors, match_msg):
+    with pytest.raises(expected_errors, match=match_msg):
+        inference_classifier(type_classifier)
+
+@patch("src.core.pickle.load")
+@patch("src.core.open")
+def test_inference_classifier_error_model_not_find(mock_open, mock_pickle_load):
+    mock_open.side_effect = FileNotFoundError
+    with pytest.raises(RuntimeError, match="Model file not found. Please train the model first."):
+        inference_classifier('f')
+
+@patch("src.core.cv2.VideoCapture")
+@patch("src.core.pickle.load")
+@patch("src.core.open")
+def test_inference_classifier_error_camera_not_open(mock_open, mock_pickle_load, mock_videoCapture):
+    mock_videoCapture.return_value.isOpened.return_value = False
+    with pytest.raises(RuntimeError, match="Cannot open camera"):
+        inference_classifier('f')
+
+@patch("src.core.cv2.VideoCapture")
+@patch("src.core.pickle.load")
+@patch("src.core.open")
+def test_inference_classifier_error_can_not_read_frame(mock_open, mock_pickle_load, mock_videoCapture):
+    mock_videoCapture.return_value.isOpened.return_value = True
+    mock_videoCapture.return_value.read.return_value = (False, None)
+    with pytest.raises(RuntimeError, match="Can't read the frame"):
+        inference_classifier('f')
+
+@patch("src.core.cv2.VideoCapture")
+@patch("src.core.pickle.load")
+@patch("src.core.open")
+@patch("src.core.cv2.waitKey")
+@patch("src.core.cv2.cvtColor")
+@patch("mediapipe.solutions.hands.Hands.process")
+@patch("src.core.cv2.imshow")
+def test_inference_classifier_error_hands_process_did_not_work(
+    mock_imshow,
+    mock_hands_process, 
+    mock_cvtColor, 
+    mock_waitKey, 
+    mock_open, 
+    mock_pickle_load, 
+    mock_videoCapture
+    ):
+
+    fake_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    mock_videoCapture.return_value.isOpened.return_value = True
+    mock_videoCapture.return_value.read.return_value = (True, fake_frame)
+    mock_waitKey.side_effect = [ord('q'), 1, ord('q')]
+    mock_cvtColor.return_value = fake_frame
+    mock_hands_process.return_value = None
+    with pytest.raises(RuntimeError, match="Hands process didn't work"):
+        inference_classifier('f')
+
+@patch("src.core.cv2.VideoCapture")
+@patch("src.core.pickle.load")
+@patch("src.core.open")
+@patch("src.core.cv2.waitKey")
+@patch("src.core.cv2.cvtColor")
+@patch("mediapipe.solutions.hands.Hands.process")
+@patch("src.core.cv2.imshow")
+@patch("mediapipe.solutions.drawing_utils.draw_landmarks")
+@patch("mediapipe.solutions.drawing_styles")
+def test_inference_classifier_error_bad_prediction_length(
+    mock_drawing_styles, 
+    mock_draw_landmarks,
+    mock_imshow,
+    mock_hands_process,
+    mock_cvtColor,
+    mock_waitKey,
+    mock_open,
+    mock_pickle_load,
+    mock_videoCapture
+):
+    mock_open.return_value.__enter__.return_value = "fake_file"
+    fake_model_f = MagicMock()
+    mock_pickle_load.return_value = fake_model_f
+
+    mock_videoCapture.return_value.isOpened.return_value = True
+
+    fake_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    mock_videoCapture.return_value.read.return_value = (True, fake_frame)
+
+    mock_waitKey.side_effect = [ord('q'), 1, 1, ord('q')]
+
+    mock_cvtColor.return_value = fake_frame
+
+    fake_hand_landmarks = MagicMock()
+    fake_hand_landmarks.landmark = [MagicMock(x=0.1*i, y=0.05*i) for i in range(21)]
+    mock_hands_process.return_value = MagicMock(multi_hand_landmarks=[fake_hand_landmarks])
+
+    fake_model_f.predict.return_value = [0, 1] 
+    
+
+    with pytest.raises(RuntimeError, match="The model didn't predict a single value"):
+        inference_classifier('f')
