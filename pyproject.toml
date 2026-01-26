@@ -1,0 +1,36 @@
+[project]
+name = "SIGN-LANGUAGE-DETECTOR-PYTHON"
+version = "1.0.0"
+description = "A Python package for live sign language detection"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Alexandre Ferreira" },
+  { name = "Swann" },
+  { name = "Yessi" },
+  { name = "Théo Nouet" }
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "mediapipe>=0.10.21",
+    "scikit-learn>=1.2.0",
+    "opencv-python>=4.7.0.68",
+    "numpy>=1.26.4",
+    "language-tool-python>=3.1.0",
+    "optuna>=4.6.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "black",
+  "ruff",
+  "pytest-asyncio>=0.21.0"
+]
+
+[project.scripts]
+sign-language-detector = "src.main:sign_language_detector_cli"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

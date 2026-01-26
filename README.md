@@ -26,15 +26,17 @@ git@github.com:theoxnt/sign-language-detector-python.git
 
 ## Running the code 
 
-Create a new virtual environment, activate it and install the dependencies. For example with conda :
+Create a new virtual environment. For example with conda :
 ```bash
 conda create --name sign_language_env
 ```
+Activate it:
 ```bash
 conda activate sign_language_env
 ```
+And install the dependencies:
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 Run the code <br>
 If the user want to use the sign language detector :
