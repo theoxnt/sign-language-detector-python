@@ -78,7 +78,11 @@ SIGN-LANGUAGE-DETECTOR-PYTHON
 │   ├── ModulableNet.py      # Neural network used by optuna to find the best model
 │   ├── optuna_trainer.py
 │   └── SimpleNet.py         # First neural netwok used
-├── tests/                   # TODO
+├── tests/
+│   ├── test_cli.py
+│   ├── test_core.py
+│   ├── test_io.py
+│   └── test_main.py
 ├── .gitignore
 ├── LICENSE
 ├── pyproject.toml
@@ -90,7 +94,7 @@ To run the tests, you need to install pytest :
 ```bash
 pip install pytest
 ```
-You need to be in the test folder and the execute : 
+You need to be in the test folder and execute : 
 ```bash
 pytest
 ```
