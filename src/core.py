@@ -147,20 +147,20 @@ def create_dataset(number_of_classes, dataset_name):
 
                 if not results:
                     raise RuntimeError("Hands process didn't work")
+                if results.multi_hand_landmarks:
+                    for hand_landmarks in results.multi_hand_landmarks:
+                        for i in range(len(hand_landmarks.landmark)):
+                            x = hand_landmarks.landmark[i].x
+                            y = hand_landmarks.landmark[i].y
 
-                for hand_landmarks in results.multi_hand_landmarks:
-                    for i in range(len(hand_landmarks.landmark)):
-                        x = hand_landmarks.landmark[i].x
-                        y = hand_landmarks.landmark[i].y
+                            x_.append(x)
+                            y_.append(y)
 
-                        x_.append(x)
-                        y_.append(y)
-
-                    for i in range(len(hand_landmarks.landmark)):
-                        x = hand_landmarks.landmark[i].x
-                        y = hand_landmarks.landmark[i].y
-                        data_aux.append(x - min(x_))
-                        data_aux.append(y - min(y_))
+                        for i in range(len(hand_landmarks.landmark)):
+                            x = hand_landmarks.landmark[i].x
+                            y = hand_landmarks.landmark[i].y
+                            data_aux.append(x - min(x_))
+                            data_aux.append(y - min(y_))
                 data.append(data_aux)
                 labels.append(actual_label)
     DATASET_DIR = './src/data_pickle'
@@ -467,7 +467,7 @@ def inference_classifier(type_classifier: str):
 
     hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
-    labels_dict = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 9: 'K', 10: 'L', 11: 'M', 12: 'N', 13: 'O', 14: 'P', 15: 'Q', 16: 'R', 17: 'S', 18: 'T', 19: 'U', 20: 'V', 21: 'W', 22: 'X', 23: 'Y', 24: ' '}
+    labels_dict = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 9: 'K', 10: 'L', 11: 'M', 12: 'N', 13: 'O', 14: 'P', 15: 'Q', 16: 'R', 17: 'S', 18: 'T', 19: 'U', 20: 'V', 21: 'W', 22: 'X', 23: 'Y', 24: '_'}
     while True:
             ret, frame = cap.read()
             if not ret: 
@@ -555,8 +555,9 @@ def inference_classifier(type_classifier: str):
 
     cap.release()
     cv2.destroyAllWindows()
-    print("Predicted sentence: ", sentence_predicted)
+    sentence_predicted = sentence_predicted.replace("_", " ")
+    print("\nPredicted sentence: ", sentence_predicted)
     corrected_text = tool.correct(sentence_predicted)
-    print('corrected text: ', corrected_text) 
+    print('\nCorrected text: ', corrected_text) 
     return True
 
