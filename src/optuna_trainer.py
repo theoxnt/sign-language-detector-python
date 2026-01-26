@@ -5,15 +5,40 @@ from src.core import splitting_dataset, epoch_trainer
 import optuna
 from torch.utils.data import DataLoader
 
-def run_optuna(n_trials=30):
-    """Run Optuna hyperparameter optimization for the ModulableNet."""
+def run_optuna(
+        n_trials=30, 
+        min_lr=1e-5, 
+        max_lr=1e-1, 
+        batch_size_list=[32, 64, 128], 
+        min_epochs=5,
+        max_epochs=250,
+        min_numbers_layer=1,
+        max_numbers_layer=7):
+    """
+    Run Optuna hyperparameter optimization for the ModulableNet model.
+
+    Args:
+        n_trials (int, optional): Number of Optuna trials to perform. Default is 30.
+        min_lr (float, optional): Minimum learning rate to explore. Default is 1e-5.
+        max_lr (float, optional): Maximum learning rate to explore. Default is 1e-1.
+        batch_size_list (list[int], optional): List of batch sizes to choose from. Default is [32, 64, 128].
+        min_epochs (int, optional): Minimum number of epochs. Default is 5.
+        max_epochs (int, optional): Maximum number of epochs. Default is 250.
+        min_numbers_layer (int, optional): Minimum number of hidden layers in the model. Default is 1.
+        max_numbers_layer (int, optional): Maximum number of hidden layers in the model. Default is 7.
+
+    Returns:
+        tuple: A pair containing:
+            - accuracy (float): Accuracy of the best trial on the test dataset.
+            - params (dict): Dictionary of hyperparameters for the best trial.
+    """
     
     def objective(trial):
         """Objective function for Optuna."""
-        learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
-        batch_size = trial.suggest_categorical('batch_size', [32, 64, 128])
-        num_epochs = trial.suggest_int('num_epochs', 5, 250)
-        n_layers = trial.suggest_int("n_layers", 1, 7)
+        learning_rate = trial.suggest_loguniform('learning_rate', min_lr, max_lr)
+        batch_size = trial.suggest_categorical('batch_size', batch_size_list)
+        num_epochs = trial.suggest_int('num_epochs', min_epochs, max_epochs)
+        n_layers = trial.suggest_int("n_layers", min_numbers_layer, max_numbers_layer)
 
         hidden_dims = []
         activations = []
@@ -65,6 +90,7 @@ def run_optuna(n_trials=30):
     trial = study.best_trial
     print(f"  Accuracy: {trial.value}")
     print(f"  Params: {trial.params}")
+    return (trial.value, trial.params)
 
 if __name__ == "__main__":
     run_optuna()

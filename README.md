@@ -46,6 +46,24 @@ If the user want to create his own model :
 python -m src.main --edit
 ```
 
+## Use it as a package in your project
+
+You can import the sign_language_detector and run_optuna functions into your project using the following lines: <br>
+The sign_language_detector function allows you to use the sign language detector directly in your code. It uses the camera to perform live sign language detection and returns the predicted sentence.
+```bash
+from SIGN-LANGUAGE-DETECTOR-PYTHON import sign_language_detector
+```
+The run_optuna function allows you to search for the best hyperparameters if you want to train your own neural network model for sign language detection.
+```bash
+from SIGN-LANGUAGE-DETECTOR-PYTHON import run_optuna
+```
+Alternatively, to import both functions at once, you can use:
+```bash
+from SIGN-LANGUAGE-DETECTOR-PYTHON import *
+```
+
+
+
 ## Project structure 
 
 ```text

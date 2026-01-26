@@ -442,8 +442,7 @@ def inference_classifier(type_classifier: str):
         type_classifier (str): Type of classifier to use ('f' for random forest, 'n' for neural network)
         
     Returns:
-        print the predicted sentence and corrected text
-        bool: True if inference was performed successfully, False otherwise
+        corrected_sentence: The predicted sentence, corrected by an other IA
     """
     if not type(type_classifier) is str:
         raise TypeError("type_classifier must be a string")
@@ -556,8 +555,6 @@ def inference_classifier(type_classifier: str):
     cap.release()
     cv2.destroyAllWindows()
     sentence_predicted = sentence_predicted.replace("_", " ")
-    print("\nPredicted sentence: ", sentence_predicted)
     corrected_text = tool.correct(sentence_predicted)
-    print('\nCorrected text: ', corrected_text) 
-    return True
+    return corrected_text
 

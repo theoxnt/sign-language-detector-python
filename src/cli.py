@@ -76,7 +76,10 @@ def ask_user():
             else:
                 raise ValueError("Invalid option selected. Please enter 'f' or 'n'.")
         print_prompt("Using model...")
-        action_finished = inference_classifier(model_type)
+        predicted_sentence = inference_classifier(model_type)
+        print(f"\nPredicted sentence : {predicted_sentence}")
+        if predicted_sentence: 
+            action_finished = True
         if not action_finished:
             raise RuntimeError("Model inference failed.")
 

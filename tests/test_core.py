@@ -536,9 +536,9 @@ def test_inference_classifier_ok(
 
     fake_model_f.predict.return_value = [0] 
 
-    result = inference_classifier('f')
+    prediction = inference_classifier('f')
 
-    assert result is True
+    assert type(prediction) is str
     mock_destroy_allWindows.assert_called_once()
     mock_videoCapture.return_value.release.assert_called_once()
 
