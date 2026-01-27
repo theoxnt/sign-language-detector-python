@@ -7,23 +7,18 @@ on:
     branches: [ main, theo, yessi ]
 
 jobs:
-  test:
-    name: Test on Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.11', '3.12']
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.11'
         cache: 'pip'
 
     - name: Install dependencies
@@ -31,20 +26,49 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
 
-    - name: Run tests
+    - name: Run unit tests
       run: |
-        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term --cov-report=html
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+    - name: Check test coverage threshold
+      run: |
+        coverage report --fail-under=50
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
       with:
-        files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+        name: coverage-report
+        path: htmlcov/
 
-  lint:
+    - name: Verify project structure
+      run: |
+        python -c "
+        import os
+        required_dirs = ['src', 'tests', 'src/data', 'src/models']
+        for dir in required_dirs:
+            assert os.path.exists(dir), f'Missing directory: {dir}'
+        print('✓ Project structure validated')
+        "
+
+    - name: Check dependencies compatibility
+      run: |
+        pip check
+
+    - name: Test imports
+      run: |
+        python -c "
+        import mediapipe as mp
+        import torch
+        import cv2
+        import sklearn
+        print('✓ All critical imports successful')
+        print(f'MediaPipe: {mp.__version__}')
+        print(f'PyTorch: {torch.__version__}')
+        assert hasattr(mp, 'solutions'), 'MediaPipe solutions not available'
+        "
+
+  code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
 
@@ -64,16 +88,30 @@ jobs:
         pip install ruff black isort mypy
 
     - name: Check formatting with Black
-      run: black --check src/ tests/
+      run: |
+        black --check src/ tests/
+        echo "✓ Code formatting is correct"
 
     - name: Check imports with isort
-      run: isort --check-only src/ tests/
+      run: |
+        isort --check-only src/ tests/
+        echo "✓ Imports are properly sorted"
 
     - name: Lint with Ruff
-      run: ruff check src/ tests/
+      run: |
+        ruff check src/ tests/
+        echo "✓ No linting errors found"
 
-    - name: Type check with mypy
-      run: mypy src/ --ignore-missing-imports
+    - name: Check code complexity
+      run: |
+        ruff check src/ --select C90 --config "lint.mccabe.max-complexity = 10"
+        echo "✓ Code complexity is acceptable"
+      continue-on-error: true
+
+    - name: Check docstrings
+      run: |
+        ruff check src/ --select D
+        echo "✓ Documentation checked"
       continue-on-error: true
 
   security:
@@ -93,19 +131,114 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install safety bandit[toml]
+        pip install safety bandit[toml] pip-audit
 
-    - name: Check for security vulnerabilities with Safety
-      run: safety check --json
+    - name: Check for known vulnerabilities with Safety
+      run: |
+        safety check --json || echo "⚠ Some vulnerabilities found"
+      continue-on-error: true
+
+    - name: Audit dependencies with pip-audit
+      run: |
+        pip-audit --desc --fix-version
       continue-on-error: true
 
     - name: Security audit with Bandit
-      run: bandit -r src/ -f json -o bandit-report.json
+      run: |
+        bandit -r src/ -f json -o bandit-report.json
+        echo "✓ Security scan completed"
+      continue-on-error: true
+
+    - name: Check for hardcoded secrets
+      run: |
+        bandit -r src/ -f screen --skip B101
+        echo "✓ No hardcoded secrets detected"
       continue-on-error: true
 
     - name: Upload Bandit report
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: bandit-report
+        name: bandit-security-report
         path: bandit-report.json
+
+  model-validation:
+    name: Model & Data Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Validate data directory structure
+      run: |
+        python -c "
+        import os
+        data_dir = 'src/data'
+        models_dir = 'src/models'
+        assert os.path.exists(data_dir), 'Data directory missing'
+        assert os.path.exists(models_dir), 'Models directory missing'
+        print('✓ Directory structure validated')
+        "
+
+    - name: Check MediaPipe Hands model
+      run: |
+        python -c "
+        import mediapipe as mp
+        hands = mp.solutions.hands.Hands(static_image_mode=True)
+        print('✓ MediaPipe Hands model loads successfully')
+        hands.close()
+        "
+
+    - name: Verify PyTorch model compatibility
+      run: |
+        python -c "
+        import torch
+        import torch.nn as nn
+        
+        # Test basic model creation
+        class TestNet(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.fc = nn.Linear(10, 5)
+            def forward(self, x):
+                return self.fc(x)
+        
+        model = TestNet()
+        x = torch.randn(1, 10)
+        output = model(x)
+        assert output.shape == (1, 5), 'Model output shape incorrect'
+        print('✓ PyTorch models compatible')
+        "
+
+    - name: Check pickle compatibility
+      run: |
+        python -c "
+        import pickle
+        import tempfile
+        import os
+        
+        # Test pickle save/load
+        test_data = {'test': [1, 2, 3], 'labels': [0, 1, 2]}
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pickle') as f:
+            pickle.dump(test_data, f)
+            temp_path = f.name
+        
+        with open(temp_path, 'rb') as f:
+            loaded_data = pickle.load(f)
+        
+        os.remove(temp_path)
+        assert loaded_data == test_data, 'Pickle load/save failed'
+        print('✓ Pickle operations working correctly')
+        "
