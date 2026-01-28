@@ -4,9 +4,7 @@ from unittest.mock import MagicMock, call, patch
 
 sys.path.append("..")
 
-from pathlib import Path
 
-import mediapipe as mp
 import numpy as np
 import pytest
 
@@ -191,7 +189,7 @@ def test_create_dataset_ok(
     assert result is True
     mock_mkdir.assert_called_once()
     mock_open.assert_called_once()
-    mock_open.assert_has_calls([call(f"./src/data_pickle/dataset_test.pickle", "wb")])
+    mock_open.assert_has_calls([call("./src/data_pickle/dataset_test.pickle", "wb")])
     mock_pickle.assert_called_once()
     assert mock_listdir.call_count == 18
 

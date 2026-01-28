@@ -193,15 +193,15 @@ def train_classifier(dataset_file, type_classifier, num_classes=None):
     Returns:
         bool: True if the model was trained and saved successfully, False otherwise
     """
-    if not type(dataset_file) is str:
+    if type(dataset_file) is not str:
         raise TypeError("dataset_file should be a string")
     if dataset_file == "":
         raise ValueError("dataset_file should not be empty")
-    if not type(type_classifier) is str:
+    if type(type_classifier) is not str:
         raise TypeError("type_classifier should be a string")
     if not (type_classifier == "f" or type_classifier == "n"):
         raise ValueError("type_classifier should be equal to 'f' or 'n'")
-    if num_classes != None:
+    if num_classes is not None:
         if type(num_classes) is not int:
             raise TypeError("num_classes should be an integer")
         if num_classes < 1:
@@ -464,7 +464,7 @@ def inference_classifier(type_classifier: str):
     Returns:
         corrected_sentence: The predicted sentence, corrected by an other IA
     """
-    if not type(type_classifier) is str:
+    if type(type_classifier) is not str:
         raise TypeError("type_classifier must be a string")
     if not (type_classifier == "f" or type_classifier == "n"):
         raise ValueError("type_classifier must be equal to 'n' or 'f'")

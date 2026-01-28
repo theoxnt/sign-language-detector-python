@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import call, patch
 
 sys.path.append("..")
 import pytest
@@ -46,7 +46,7 @@ def test_ask_ko_with_cast_type(mock_input):
 
 
 @patch("src.io_.input")
-def test_ask_ko_with_cast_type(mock_input):
+def test_ask_retry_on_invalid_cast(mock_input):
     mock_input.side_effect = ["fe", "3"]
 
     ask("prompt", int)

@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 sys.path.append("..")
 import pytest
@@ -28,7 +28,7 @@ def test_sign_language_detector_ok_with_forest_classifier(mock_inference):
     predicted_sentence = sign_language_detector("f")
 
     mock_inference.assert_called_once_with("f")
-    assert predicted_sentence is "test"
+    assert predicted_sentence == "test"
 
 
 @patch("src.main.inference_classifier")
@@ -38,4 +38,4 @@ def test_sign_language_detector_ok_with_neural_network_classifier(mock_inference
     predicted_sentence = sign_language_detector("n")
 
     mock_inference.assert_called_once_with("n")
-    assert predicted_sentence is "test"
+    assert predicted_sentence == "test"

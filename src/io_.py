@@ -11,13 +11,13 @@ def ask(prompt, cast_type=None, min=None, max=None):
     Returns:
         The user's input.
     """
-    if not type(prompt) is str:
+    if type(prompt) is not str:
         raise TypeError("prompt must be a string")
     if prompt == "":
         raise ValueError("prompt must be not empty")
-    if cast_type != None and min != None and cast_type != type(min):
+    if cast_type is not None and min is not None and not isinstance(min, cast_type):
         raise TypeError("min must be the same type as cast_type")
-    if cast_type != None and max != None and cast_type != type(max):
+    if cast_type is not None and max is not None and not isinstance(max, cast_type):
         raise TypeError("max must be the same type as cast_type")
     valide = False
     while not valide:
