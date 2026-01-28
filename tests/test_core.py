@@ -1,5 +1,6 @@
 import sys
 from unittest.mock import MagicMock, call, patch
+import os
 
 sys.path.append('..')
 
@@ -88,9 +89,9 @@ def test_collect_images_ok(
     assert mock_makedirs.call_count == num_classes + 1
 
     expected_calls = [
-        call(f'./src/data/{folder_name}'),
-        call(f'./src/data/{folder_name}/0'),
-        call(f'./src/data/{folder_name}/1')
+        call(os.path.join('./src/data', folder_name)),
+        call(os.path.join('./src/data', folder_name, '0')),
+        call(os.path.join('./src/data', folder_name, '1'))
     ]
     mock_makedirs.assert_has_calls(expected_calls, any_order=False)
 
