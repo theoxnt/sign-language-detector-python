@@ -1,13 +1,13 @@
 def ask(prompt, cast_type=None, min=None, max=None):
     """
     Ask the user for input with optional type casting and range validation.
-    
+
     Args:
         prompt (str): The prompt message to display to the user.
         cast_type (type, optional): The type to cast the input to (e.g., int, float, str). Defaults to None.
         min (optional): Minimum acceptable value (inclusive). Defaults to None.
-        max (optional): Maximum acceptable value (inclusive). Defaults to None. 
-    
+        max (optional): Maximum acceptable value (inclusive). Defaults to None.
+
     Returns:
         The user's input.
     """
@@ -36,6 +36,7 @@ def ask(prompt, cast_type=None, min=None, max=None):
             continue
         valide = True
     return response
+
 
 def print_prompt(prompt):
     """

@@ -8,6 +8,7 @@ activation_dict = {
     "tanh": nn.Tanh,
 }
 
+
 class ModulableNet(nn.Module):
     def __init__(self, input_dim, num_classes, hidden_dims, activations):
         """

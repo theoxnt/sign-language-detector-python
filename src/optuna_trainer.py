@@ -5,15 +5,17 @@ from src.core import splitting_dataset, epoch_trainer
 import optuna
 from torch.utils.data import DataLoader
 
+
 def run_optuna(
-        n_trials=30, 
-        min_lr=1e-5, 
-        max_lr=1e-1, 
-        batch_size_list=[32, 64, 128], 
-        min_epochs=5,
-        max_epochs=250,
-        min_numbers_layer=1,
-        max_numbers_layer=7):
+    n_trials=30,
+    min_lr=1e-5,
+    max_lr=1e-1,
+    batch_size_list=[32, 64, 128],
+    min_epochs=5,
+    max_epochs=250,
+    min_numbers_layer=1,
+    max_numbers_layer=7,
+):
     """
     Run Optuna hyperparameter optimization for the ModulableNet model.
 
@@ -32,39 +34,42 @@ def run_optuna(
             - accuracy (float): Accuracy of the best trial on the test dataset.
             - params (dict): Dictionary of hyperparameters for the best trial.
     """
-    
+
     def objective(trial):
         """Objective function for Optuna."""
-        learning_rate = trial.suggest_loguniform('learning_rate', min_lr, max_lr)
-        batch_size = trial.suggest_categorical('batch_size', batch_size_list)
-        num_epochs = trial.suggest_int('num_epochs', min_epochs, max_epochs)
+        learning_rate = trial.suggest_loguniform("learning_rate", min_lr, max_lr)
+        batch_size = trial.suggest_categorical("batch_size", batch_size_list)
+        num_epochs = trial.suggest_int("num_epochs", min_epochs, max_epochs)
         n_layers = trial.suggest_int("n_layers", min_numbers_layer, max_numbers_layer)
 
         hidden_dims = []
         activations = []
 
         for i in range(n_layers):
-            hidden_dims.append(
-                trial.suggest_int(f"hidden_dim_{i}", 64, 512)
-            )
+            hidden_dims.append(trial.suggest_int(f"hidden_dim_{i}", 64, 512))
             activations.append(
                 trial.suggest_categorical(
-                    f"activation_{i}",
-                    ["relu", "leaky_relu", "gelu", "elu", "tanh"]
+                    f"activation_{i}", ["relu", "leaky_relu", "gelu", "elu", "tanh"]
                 )
             )
 
-        model = ModulableNet(input_dim=42, num_classes=25,
-                             hidden_dims=hidden_dims, activations=activations)
+        model = ModulableNet(
+            input_dim=42,
+            num_classes=25,
+            hidden_dims=hidden_dims,
+            activations=activations,
+        )
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-        data_dict = pickle.load(open('./src/data_pickle/data_25.pickle', 'rb'))
+        data_dict = pickle.load(open("./src/data_pickle/data_25.pickle", "rb"))
         train_dataset, test_dataset = splitting_dataset(data_dict)
         model.train()
         loss = []
 
         for epoch in range(num_epochs):
-            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            train_loader = DataLoader(
+                train_dataset, batch_size=batch_size, shuffle=True
+            )
             total_loss = epoch_trainer(model, optimizer, train_loader)
             print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss}")
             loss.append(total_loss)
@@ -91,6 +96,7 @@ def run_optuna(
     print(f"  Accuracy: {trial.value}")
     print(f"  Params: {trial.params}")
     return (trial.value, trial.params)
+
 
 if __name__ == "__main__":
     run_optuna()
