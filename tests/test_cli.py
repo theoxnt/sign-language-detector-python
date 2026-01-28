@@ -5,9 +5,9 @@ import pytest
 
 sys.path.append("..")
 
-from src.cli import ask_user, get_parser
-
 from unittest.mock import patch
+
+from src.cli import ask_user, get_parser
 
 # -------------------------
 # ----Test get_parser------

@@ -2,8 +2,9 @@ import sys
 from unittest.mock import MagicMock, call, patch
 
 sys.path.append("..")
-from src.io_ import *
 import pytest
+
+from src.io_ import *
 
 
 @pytest.mark.parametrize(

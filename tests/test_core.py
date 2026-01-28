@@ -1,14 +1,16 @@
+import os
 import sys
 from unittest.mock import MagicMock, call, patch
-import os
 
 sys.path.append("..")
 
-import mediapipe as mp
-from src.core import *
-import numpy as np
 from pathlib import Path
+
+import mediapipe as mp
+import numpy as np
 import pytest
+
+from src.core import *
 
 # -------------------------
 # -------Fixtures----------
