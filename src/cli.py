@@ -1,8 +1,12 @@
 import argparse
 import os
 
-from src.core import (collect_images, create_dataset, inference_classifier,
-                      train_classifier)
+from src.core import (
+    collect_images,
+    create_dataset,
+    inference_classifier,
+    train_classifier,
+)
 from src.io_ import ask, print_prompt
 
 
