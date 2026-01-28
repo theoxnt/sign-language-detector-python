@@ -1,21 +1,22 @@
+import math
 import os
-import cv2
-from pathlib import Path
 import pickle
+import time
+from pathlib import Path
+
+import cv2
+import language_tool_python
 import mediapipe as mp
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 import numpy as np
 import torch
-from src.BestNet import BestNet
-from torch.utils.data import DataLoader
 import torch.optim as optim
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from torch import nn
-import time
-import language_tool_python
-from torch.utils.data import TensorDataset
-import math
+from torch.utils.data import DataLoader, TensorDataset
+
+from src.BestNet import BestNet
 
 
 def collect_images(num_classes, imgs_per_class, folder_name):

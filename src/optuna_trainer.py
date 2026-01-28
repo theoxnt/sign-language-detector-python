@@ -1,9 +1,11 @@
 import pickle
-import torch
-from src.ModulableNet import ModulableNet
-from src.core import splitting_dataset, epoch_trainer
+
 import optuna
+import torch
 from torch.utils.data import DataLoader
+
+from src.core import epoch_trainer, splitting_dataset
+from src.ModulableNet import ModulableNet
 
 
 def run_optuna(
