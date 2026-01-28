@@ -11,7 +11,8 @@ def sign_language_detector_cli():
                      "What do you want to do?\n")
         ask_user()
     else:
-        inference_classifier('f')
+        predicted_sentence = inference_classifier('f')
+        print(f"\nPredicted sentence : {predicted_sentence}")
 
 if __name__ == "__main__":
     sign_language_detector_cli()
