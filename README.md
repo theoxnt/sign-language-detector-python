@@ -105,3 +105,7 @@ pytest
 This project uses the MIT License
 
 
+## venv activation
+venv_py311\Scripts\activate
+
+

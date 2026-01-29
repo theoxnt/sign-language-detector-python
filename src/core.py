@@ -159,19 +159,20 @@ def create_dataset(number_of_classes, dataset_name):
                 if not results:
                     raise RuntimeError("Hands process didn't work")
                 if results.multi_hand_landmarks:
-                    for hand_landmarks in results.multi_hand_landmarks:
-                        for i in range(len(hand_landmarks.landmark)):
-                            x = hand_landmarks.landmark[i].x
-                            y = hand_landmarks.landmark[i].y
+                    # Process only the first hand to ensure consistent 42 features
+                    hand_landmarks = results.multi_hand_landmarks[0]
+                    for i in range(len(hand_landmarks.landmark)):
+                        x = hand_landmarks.landmark[i].x
+                        y = hand_landmarks.landmark[i].y
 
-                            x_.append(x)
-                            y_.append(y)
+                        x_.append(x)
+                        y_.append(y)
 
-                        for i in range(len(hand_landmarks.landmark)):
-                            x = hand_landmarks.landmark[i].x
-                            y = hand_landmarks.landmark[i].y
-                            data_aux.append(x - min(x_))
-                            data_aux.append(y - min(y_))
+                    for i in range(len(hand_landmarks.landmark)):
+                        x = hand_landmarks.landmark[i].x
+                        y = hand_landmarks.landmark[i].y
+                        data_aux.append(x - min(x_))
+                        data_aux.append(y - min(y_))
                 data.append(data_aux)
                 labels.append(actual_label)
     DATASET_DIR = "./src/data_pickle"
@@ -538,10 +539,10 @@ def inference_classifier(type_classifier: str):
             raise RuntimeError("Can't read the frame (ret = False)")
         cv2.putText(
             frame,
-            'Finished? Press "Q" ! :)',
+            'Finished? Press "Q" | Delete last: "BACKSPACE"',
             (100, 50),
             cv2.FONT_HERSHEY_SIMPLEX,
-            1.3,
+            1.0,
             (0, 255, 0),
             3,
             cv2.LINE_AA,
@@ -556,8 +557,12 @@ def inference_classifier(type_classifier: str):
             3,
             cv2.LINE_AA,
         )
-        if cv2.waitKey(25) == ord("q"):
+        key = cv2.waitKey(25)
+        if key == ord("q"):
             break
+        elif key == 8:  # Backspace key
+            if len(sentence_predicted) > 0:
+                sentence_predicted = sentence_predicted[:-1]
 
         data_aux = []
         x_ = []
@@ -571,28 +576,28 @@ def inference_classifier(type_classifier: str):
         if not results:
             raise RuntimeError("Hands process didn't work")
         if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                mp_drawing.draw_landmarks(
-                    frame,
-                    hand_landmarks,
-                    mp_hands.HAND_CONNECTIONS,
-                    mp_drawing_styles.get_default_hand_landmarks_style(),
-                    mp_drawing_styles.get_default_hand_connections_style(),
-                )
+            # Process only the first hand to ensure consistent 42 features
+            hand_landmarks = results.multi_hand_landmarks[0]
+            mp_drawing.draw_landmarks(
+                frame,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style(),
+            )
 
-            for hand_landmarks in results.multi_hand_landmarks:
-                for i in range(len(hand_landmarks.landmark)):
-                    x = hand_landmarks.landmark[i].x
-                    y = hand_landmarks.landmark[i].y
+            for i in range(len(hand_landmarks.landmark)):
+                x = hand_landmarks.landmark[i].x
+                y = hand_landmarks.landmark[i].y
 
-                    x_.append(x)
-                    y_.append(y)
+                x_.append(x)
+                y_.append(y)
 
-                for i in range(len(hand_landmarks.landmark)):
-                    x = hand_landmarks.landmark[i].x
-                    y = hand_landmarks.landmark[i].y
-                    data_aux.append(x - min(x_))
-                    data_aux.append(y - min(y_))
+            for i in range(len(hand_landmarks.landmark)):
+                x = hand_landmarks.landmark[i].x
+                y = hand_landmarks.landmark[i].y
+                data_aux.append(x - min(x_))
+                data_aux.append(y - min(y_))
 
             x1 = int(min(x_) * W) - 10
             y1 = int(min(y_) * H) - 10
