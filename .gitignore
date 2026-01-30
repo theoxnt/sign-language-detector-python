@@ -1,5 +1,9 @@
-data/
+# Data files
+src/data_pickle
 
-data.pickle
+# Python Cache 
+__pycache__/
+**/__pycache__/
 
-model.p
+# Tests
+tests/src/*
